@@ -230,6 +230,98 @@ jobs:
             fi
           done
 
+      - name: 🔍 查找rootfs.tar.gz所在路径
+        id: find_rootfs
+        run: |
+          ROOTFS_FILE=$(find bin/targets/armsr/armv8/ -type f -name "*rootfs.tar.gz" | head -n1)
+          echo "✅ Found: $ROOTFS_FILE"
+          if [ ! -f "$ROOTFS_FILE" ]; then
+            echo "❌ 找不到 rootfs.tar.gz 文件"
+            exit 1
+          fi
+          echo "file=$ROOTFS_FILE" >> $GITHUB_OUTPUT
+
+      - name: 🧱 打包iStoreOS固件
+        uses: ophub/amlogic-s9xxx-openwrt@main
+        with:
+          openwrt_path: ${{ steps.find_rootfs.outputs.file }}
+          openwrt_board: ${{ inputs.openwrt_board }}
+          openwrt_kernel: ${{ inputs.openwrt_kernel }}
+          auto_kernel: true
+          kernel_repo: ophub/kernel
+          kernel_usage: stable
+          builder_name: kwonelee
+            
+      - name: 🔧 修改固件参数并重命名
+        id: modify_and_rename
+        run: |
+          set -e
+          mkdir -p temp_mount
+          
+          # 设置输出目录变量
+          OUTPUT_DIR="${PACKAGED_OUTPUTPATH:-out}"
+          
+          for FILE in $OUTPUT_DIR/*.img.gz; do
+            echo "🔍 处理文件: $FILE"
+            
+            # 解压.gz文件
+            gunzip -c "$FILE" > "${FILE%.gz}"
+            UNZIPPED_FILE="${FILE%.gz}"
+            
+            # 查找boot分区偏移量
+            BOOT_OFFSET=$(fdisk -l "$UNZIPPED_FILE" | grep -E '\.img1' | awk '{print $2 * 512}')
+            if [ -z "$BOOT_OFFSET" ]; then
+              # 如果第一种方法没找到，尝试其他方法
+              BOOT_OFFSET=$(parted "$UNZIPPED_FILE" unit B print | grep -A2 "Number" | grep -E "^\s*1" | awk '{print $2}' | sed 's/B//')
+            fi
+            
+            if [ -n "$BOOT_OFFSET" ]; then
+              echo "📌 Boot分区偏移: $BOOT_OFFSET"
+              
+              # 挂载boot分区
+              sudo mount -o loop,offset=$BOOT_OFFSET "$UNZIPPED_FILE" temp_mount
+              
+              # 检查并修改armbianEnv.txt
+              if [ -f "temp_mount/armbianEnv.txt" ]; then
+                echo "📝 修改armbianEnv.txt文件"
+                sudo sed -i 's/\(extraargs=.*\)$/\1 net.ifnames=0 biosdevname=0/' temp_mount/armbianEnv.txt
+                
+                # 验证修改
+                echo "✅ 修改后的内容:"
+                sudo cat temp_mount/armbianEnv.txt
+              else
+                echo "⚠️ 未找到armbianEnv.txt文件"
+                # 创建文件（如果需要）
+                sudo sh -c 'echo "extraargs=usbcore.autosuspend=-1 rw rootwait net.ifnames=0 biosdevname=0" > temp_mount/armbianEnv.txt'
+              fi
+              
+              # 卸载分区
+              sudo umount temp_mount
+            else
+              echo "⚠️ 无法找到boot分区偏移，跳过修改"
+            fi
+            
+            # 重新压缩为gz
+            echo "🗜️ 重新压缩文件..."
+            gzip -f "$UNZIPPED_FILE"
+            
+            # 重命名文件
+            OLD_FILENAME=$(basename "$FILE")
+            NEW_FILENAME=$(echo "$OLD_FILENAME" | sed 's/openwrt/istoreos_24.10.2/g')
+            
+            if [ "$OLD_FILENAME" != "$NEW_FILENAME" ]; then
+              mv "$FILE" "$OUTPUT_DIR/$NEW_FILENAME"
+              echo "✅ 重命名 $OLD_FILENAME 为 $NEW_FILENAME"
+            else
+              echo "ℹ️ 无需重命名 $OLD_FILENAME"
+            fi
+          done
+          
+          # 清理
+          sudo rm -rf temp_mount
+          
+          echo "🎉 所有文件处理完成!"
+
       - name: 🚀 上传到 Release
         uses: softprops/action-gh-release@v2.2.1
         with:
