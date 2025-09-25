@@ -229,7 +229,15 @@ jobs:
           kernel_repo: ophub/kernel
           kernel_usage: stable
           builder_name: kwonelee
-
+          custom_script: |
+            #!/bin/bash
+            if [ -f "/boot/armbianEnv.txt" ]; then
+              if ! grep -q "net.ifnames=0" /boot/armbianEnv.txt; then
+                sed -i '/^extraargs=/ s/$/ net.ifnames=0 biosdevname=0/' /boot/armbianEnv.txt
+                echo "Added network naming parameters to armbianEnv.txt"
+              fi
+            fi
+            
       - name: 📜 调整.img.gz 文件名
         id: rename
         run: |
