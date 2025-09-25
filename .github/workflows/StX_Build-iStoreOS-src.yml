@@ -229,29 +229,6 @@ jobs:
               echo "No need to rename $FILENAME"
             fi
           done
-
-      - name: 🔍 查找rootfs.tar.gz所在路径
-        id: find_rootfs
-        run: |
-          ROOTFS_FILE=$(find bin/targets/armsr/armv8/ -type f -name "*rootfs.tar.gz" | head -n1)
-          echo "✅ Found: $ROOTFS_FILE"
-          if [ ! -f "$ROOTFS_FILE" ]; then
-            echo "❌ 找不到 rootfs.tar.gz 文件"
-            exit 1
-          fi
-          echo "file=$ROOTFS_FILE" >> $GITHUB_OUTPUT
-
-      - name: 🧱 打包iStoreOS固件
-        uses: ophub/amlogic-s9xxx-openwrt@main
-        with:
-          openwrt_path: ${{ steps.find_rootfs.outputs.file }}
-          openwrt_board: ${{ inputs.openwrt_board }}
-          openwrt_kernel: ${{ inputs.openwrt_kernel }}
-          auto_kernel: true
-          kernel_repo: ophub/kernel
-          kernel_usage: stable
-          builder_name: kwonelee
-            
       - name: 🔧 修改固件参数并重命名
         id: modify_and_rename
         run: |
