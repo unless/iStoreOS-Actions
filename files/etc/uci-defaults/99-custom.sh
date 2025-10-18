@@ -35,11 +35,11 @@ rm -r /etc/banner1
 
 # 【网络设置-static】
 uci set network.lan.proto='static'
-uci set network.lan.ipaddr='192.168.5.88'
+uci set network.lan.ipaddr='192.168.111.1'
 uci set network.lan.netmask='255.255.255.0'
-uci set network.lan.gateway='192.168.5.1'
-uci set network.lan.dns='223.5.5.5'
-uci commit network
+uci set dhcp.lan.dhcpv4='server'
+uci commit
+
 
 # 【网络设置-dhcp】
 # ---计算网卡数量
@@ -105,7 +105,7 @@ elif [ "$count" -gt 1 ]; then
 fi
 
 # 设置所有网口可连接 SSH
-uci set dropbear.@dropbear[0].Interface=''
+# uci set dropbear.@dropbear[0].Interface=''
 uci commit
 
 exit 0
