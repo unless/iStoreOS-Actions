@@ -104,8 +104,6 @@ jobs:
         mkdir -p imagebuilder/files/etc/{uci-defaults,opkg,banner1}
         #添加开机启动脚本
         cp files/etc/uci-defaults/99-custom.sh imagebuilder/files/etc/uci-defaults/
-        #替换软件源
-        cp files/etc/opkg/distfeeds.conf imagebuilder/files/etc/opkg/
         #替换O大打包脚本的默认banner
         cp files/etc/banner imagebuilder/files/etc/banner1/
         mkdir -p imagebuilder/files/etc/openclash/core
@@ -123,8 +121,6 @@ jobs:
 
     - name: 🧱 构建iStoreOS-rootfs
       working-directory: ./imagebuilder
-      env:
-        INCLUDE_DOCKER: ${{ github.event.inputs.include_docker }}
       run: |
         echo "打印imagebuilder目录结构"
         tree -L 1
