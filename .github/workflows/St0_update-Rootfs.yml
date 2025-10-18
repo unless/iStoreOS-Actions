@@ -1,0 +1,181 @@
+name: 💿 St0_update-Rootfs
+
+on:
+  schedule:
+    # 注意：GitHub Actions 使用 UTC 时间
+    # 北京时间凌晨1点对应 UTC 时间的 17点（前一天）
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      network_settings:
+        description: "请选择初始网络配置"
+        required: true
+        default: 'static'
+        type: choice
+        options:
+          - 'static'
+          - 'dhcp'
+      ipaddr:
+        description: '请输入管理IP（静态地址时必填）'
+        required: true
+        default: '192.168.111.1'
+      openwrt_board:
+        description: "请选择设备型号（默认当下常见设备）"
+        required: true
+        default: "beikeyun"
+        type: choice
+        options:
+          - beikeyun
+          - wxy-oect
+          - beikeyun_wxy-oect
+
+env:
+  VERSION: '24.10.3'
+
+jobs:
+  trigger-st0:
+    name: '[ST0] 同步 iStoreOS 镜像'
+    runs-on: ubuntu-22.04
+    outputs:
+      # 定义输出，供后续任务使用
+      server_date: ${{ steps.sync-ib.outputs.server_date }}
+      should_update: ${{ steps.sync-ib.outputs.should_update }}
+      file_name: ${{ steps.sync-ib.outputs.file_name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: 同步iStoreOS镜像
+        id: sync-ib
+        run: |
+          set -euo pipefail  # 启用严格错误处理
+
+          ISURL="https://fw0.koolcenter.com/iStoreOS/ib/armsr"
+          ISFILE="istoreos-imagebuilder-armsr-armv8.Linux-x86_64.tar.zst"
+          TAG="istoreos-imagebuilder-armsr-armv8"
+
+          # 获取服务器上的最新日期
+          SERVER_DATE=$(curl -s -L "$ISURL" | grep -A1 "$TAG" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1) || exit 1
+          FILE_NAME="$TAG-$SERVER_DATE.tar.zst"
+
+          echo "获取到的服务器日期: $SERVER_DATE"
+          echo "目标文件名: $FILE_NAME"
+
+          # 检查GitHub Release中是否已存在此版本
+          if RELEASE_INFO=$(curl -f -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG") && \
+            echo "$RELEASE_INFO" | grep -q "\"name\":.*$FILE_NAME"; then
+            echo "✅ 版本 $TAG ($SERVER_DATE) 已存在，跳过同步。"
+            echo "should_update=false" >> $GITHUB_OUTPUT
+          else
+            echo "🔄 需要下载新版本: $FILE_NAME"
+            curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
+            echo "should_update=true" >> $GITHUB_OUTPUT
+          fi
+
+          # 设置输出变量
+          echo "server_date=$SERVER_DATE" >> $GITHUB_OUTPUT
+          echo "file_name=$FILE_NAME" >> $GITHUB_OUTPUT
+
+      - name: 🚀 上传到 Release (如需要)
+        if: steps.sync-ib.outputs.should_update == 'true'
+        uses: softprops/action-gh-release@v2.2.1
+        with:
+          tag_name: istoreos-imagebuilder-armsr-armv8
+          body: |
+            📅 同步版本: ${{ steps.sync-ib.outputs.server_date }}
+            ⚙️ 触发提交: ${{ github.sha }}
+          files: |
+            ${{ steps.sync-ib.outputs.file_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+
+  trigger-st1:
+    name: '[ST1] 触发并等待 Rootfs 构建'
+    runs-on: ubuntu-latest
+    needs: trigger-st0 # 依赖 ST0 任务
+    # 可选：仅在 ST0 判断需要更新时才运行
+    if: |
+      (github.event_name == 'schedule' && needs.trigger-st0.outputs.should_update == 'true') ||
+      (github.event_name == 'workflow_dispatch')
+    steps:
+      - name: 🔔 触发 St1 (Rootfs构建) 工作流
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: 'St1_Build-Rootfs-release.yml' # 请确保此文件名与您的实际工作流文件一致
+          ref: 'beikeyun' # 触发的工作流所在分支
+          inputs: |
+            {
+            "network_settings": "${{ github.event.inputs.network_settings }}",
+            "ipaddr": "${{ github.event.inputs.ipaddr }}",
+            "ib_Version": "${{ needs.trigger-st0.outputs.server_date }}"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: ⏳ 等待 St1 工作流完成
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: wait-for-st1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "build" # 请根据 St1 工作流中的实际 job name 修改
+          ref: ${{ github.sha }}
+          timeoutSeconds: 480
+          intervalSeconds: 5
+
+  trigger-st2:
+    name: '[ST2] 触发并等待 iStoreOS 构建'
+    runs-on: ubuntu-latest
+    needs: trigger-st1 # 依赖 ST1 任务
+    steps:
+      - name: 🔔 触发 St2 (iStoreOS构建) 工作流
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: 'St2_Build-iStoreOS-ib.yml' # 请确保此文件名与您的实际工作流文件一致
+          ref: 'beikeyun'
+          inputs: '{"openwrt_board": "${{ inputs.openwrt_board }}","network_settings": "${{ github.event.inputs.network_settings }}"}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: ⏳ 等待 St2 工作流完成
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: wait-for-st2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "build" # 请根据 St2 工作流中的实际 job name 修改
+          ref: ${{ github.sha }}
+          timeoutSeconds: 240
+          intervalSeconds: 5
+          
+  # ===== 新增的Webhook通知任务 =====
+  notify-webhook:
+    name: '📢 Webhook通知'
+    runs-on: ubuntu-latest
+    needs: [trigger-st0, trigger-st1, trigger-st2]
+    if: always() # 无论成功失败都发送通知
+    steps:
+      - name: 发送Webhook通知
+        run: |
+          # 构建通知消息
+          MESSAGE="工作流状态: ${{ job.status }}\n"
+          MESSAGE+="工作流名称: ${{ github.workflow }}\n"
+          MESSAGE+="运行ID: ${{ github.run_id }}\n"
+          MESSAGE+="触发事件: ${{ github.event_name }}\n"
+          MESSAGE+="提交: ${{ github.sha }}\n"
+          MESSAGE+="详情: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # 发送到Webhook
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "content": "GitHub Actions 通知",
+              "embeds": [{
+                "title": "工作流完成通知",
+                "description": "'"${MESSAGE}"'",
+                "color": '${{ job.status == 'success' && '65280' || '16711680' }}'
+              }]
+            }' \
+            "${{ secrets.WEBHOOK_URL }}"
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
