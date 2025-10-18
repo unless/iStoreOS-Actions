@@ -5,7 +5,7 @@ on:
       network_settings:
         description: "请选择初始网络配置"
         required: true
-        default: 'dhcp'
+        default: 'static'
         type: choice
         options:
           - 'static'
@@ -13,7 +13,7 @@ on:
       ipaddr:
         description: '请输入管理IP（静态地址时必填）'
         required: true
-        default: '192.168.5.88'
+        default: '192.168.111.1'
       gateway:
         description: '请输入默认网关（静态地址时必填）'
         required: true
@@ -26,7 +26,20 @@ on:
         options:
           - 'yes'
           - 'no'
-
+      ib_Version:
+        description: '请选择需要的版本'
+        required: false
+        default: 'new'
+        type: choice
+        options:
+          - 'new'
+          - '2025-09-30'
+          - '2025-10-17'
+      repo_settings:
+        description: "unless/iStoreOS-Actions"
+        required: true
+        default: "unless/iStoreOS-Actions"
+        
 env:
   VERSION: 24.10.3
 
@@ -51,8 +64,8 @@ jobs:
            echo "删除网络设置-dhcp"
            sed -i '44,105d' "$CONFIG_PATH"
            echo "替换默认配置"
-           sed -i "/ipaddr/s/192.168.5.88/${{ inputs.ipaddr }}/g" "$CONFIG_PATH"
-           sed -i "/gateway/s/192.168.5.1/${{ inputs.gateway }}/g" "$CONFIG_PATH"
+           sed -i "/ipaddr/s/192.168.111.1/${{ inputs.ipaddr }}/g" "$CONFIG_PATH"
+           
         else
            echo "删除网络设置-static"
            sed -i '36,42d' "$CONFIG_PATH"
@@ -67,7 +80,17 @@ jobs:
 
     - name: ⏬ 下载 ImageBuilder
       run: |
-        curl -L -o imagebuilder.tar.zst https://github.com/Kwonelee/iStoreOS-Actions/releases/download/iStoreOS-ImageBuilder-20251017/istoreos-imagebuilder-armsr-armv8.Linux-x86_64.tar.zst
+        # 判断是否提供了特定版本
+        if [ "${{ inputs.ib_Version }}" != "new" ]; then
+          echo "🔽 使用指定版本: ${{ inputs.ib_Version }}"
+          DOWNLOAD_URL="https://github.com/${{ inputs.repo_settings }}/releases/download/istoreos-imagebuilder-armsr-armv8/istoreos-imagebuilder-armsr-armv8-${{ inputs.ib_Version }}.tar.zst"
+        else
+          echo "🔍 未指定版本，查找最新版本..."
+          DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/${{ inputs.repo_settings }}/releases" | jq -r '.[].assets[] | select(.name | startswith("istoreos-imagebuilder-armsr-armv8-")) | "\(.name) \(.browser_download_url)"' | sort -r | head -1 | awk '{print $2}')
+        fi
+        
+        echo "📥 下载地址: $DOWNLOAD_URL"
+        curl -L -o imagebuilder.tar.zst "$DOWNLOAD_URL"
         tar --use-compress-program=unzstd -xvf imagebuilder.tar.zst
         mv istoreos-imagebuilder-* imagebuilder
 
@@ -81,6 +104,8 @@ jobs:
         mkdir -p imagebuilder/files/etc/{uci-defaults,opkg,banner1}
         #添加开机启动脚本
         cp files/etc/uci-defaults/99-custom.sh imagebuilder/files/etc/uci-defaults/
+        #替换软件源
+        cp files/etc/opkg/distfeeds.conf imagebuilder/files/etc/opkg/
         #替换O大打包脚本的默认banner
         cp files/etc/banner imagebuilder/files/etc/banner1/
         mkdir -p imagebuilder/files/etc/openclash/core
@@ -98,6 +123,8 @@ jobs:
 
     - name: 🧱 构建iStoreOS-rootfs
       working-directory: ./imagebuilder
+      env:
+        INCLUDE_DOCKER: ${{ github.event.inputs.include_docker }}
       run: |
         echo "打印imagebuilder目录结构"
         tree -L 1
