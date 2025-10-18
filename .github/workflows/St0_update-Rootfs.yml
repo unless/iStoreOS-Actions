@@ -104,7 +104,7 @@ jobs:
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: 'St1_Build-Rootfs-release.yml' # 请确保此文件名与您的实际工作流文件一致
-          ref: 'beikeyun' # 触发的工作流所在分支
+          ref: 'main' # 触发的工作流所在分支
           inputs: |
             {
             "network_settings": "${{ github.event.inputs.network_settings }}",
@@ -133,7 +133,7 @@ jobs:
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: 'St2_Build-iStoreOS-ib.yml' # 请确保此文件名与您的实际工作流文件一致
-          ref: 'beikeyun'
+          ref: 'main'
           inputs: '{"openwrt_board": "${{ inputs.openwrt_board }}","network_settings": "${{ github.event.inputs.network_settings }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
