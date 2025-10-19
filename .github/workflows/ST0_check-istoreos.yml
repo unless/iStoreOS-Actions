@@ -1,0 +1,104 @@
+name: 💿 ST0_check-istoreos
+
+on:
+  schedule:
+    # 注意：GitHub Actions 使用 UTC 时间
+    # 北京时间凌晨1点对应 UTC 时间的 17点（前一天）
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      network_settings:
+        description: "请选择初始网络配置"
+        required: true
+        default: 'static'
+        type: choice
+        options:
+          - 'static'
+          - 'dhcp'
+      ipaddr:
+        description: '请输入管理IP（静态地址时必填）'
+        required: true
+        default: '192.168.111.1'
+      openwrt_board:
+        description: "请选择设备型号（默认当下常见设备）"
+        required: true
+        default: "beikeyun"
+        type: choice
+        options:
+          - beikeyun
+          - wxy-oect
+          - beikeyun_wxy-oect
+
+env:
+  VERSION: '24.10.3'
+
+jobs:
+  sync-istoreos:
+    name: '[ST0] 同步 iStoreOS 镜像'
+    runs-on: ubuntu-22.04
+    outputs:
+      server_date: ${{ steps.sync-ib.outputs.server_date }}
+      should_update: ${{ steps.sync-ib.outputs.should_update }}
+      file_name: ${{ steps.sync-ib.outputs.file_name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: 同步iStoreOS镜像
+        id: sync-ib
+        run: |
+          set -euo pipefail
+
+          ISURL="https://fw0.koolcenter.com/iStoreOS/ib/armsr"
+          ISFILE="istoreos-imagebuilder-armsr-armv8.Linux-x86_64.tar.zst"
+          TAG="istoreos-imagebuilder-armsr-armv8"
+
+          SERVER_DATE=$(curl -s -L "$ISURL" | grep -A1 "$TAG" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1) || exit 1
+          FILE_NAME="$TAG-$SERVER_DATE.tar.zst"
+
+          echo "获取到的服务器日期: $SERVER_DATE"
+          echo "目标文件名: $FILE_NAME"
+
+          # 检查GitHub Release中是否已存在此版本
+          if RELEASE_INFO=$(curl -f -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG") && \
+            echo "$RELEASE_INFO" | grep -q "\"name\":.*$FILE_NAME"; then
+            echo "✅ 版本 $TAG ($SERVER_DATE) 已存在，跳过同步。"
+            echo "should_update=false" >> $GITHUB_OUTPUT
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "未检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
+          else
+            echo "🔄 需要下载新版本: $FILE_NAME"
+            curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
+            echo "should_update=true" >> $GITHUB_OUTPUT
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
+          fi
+
+          # 设置输出变量
+          echo "server_date=$SERVER_DATE" >> $GITHUB_OUTPUT
+          echo "file_name=$FILE_NAME" >> $GITHUB_OUTPUT
+          
+      # 添加新日期选项到工作流文件
+      - name: 更新工作流选项
+        if: steps.sync-ib.outputs.should_update == 'true'
+        run: |
+          # 在'new'选项下方添加新日期
+          sed -i "/- 'new'/a \          - '${{ steps.sync-ib.outputs.server_date }}'" .github/workflows/St1_Build-Rootfs-release.yml
+          git config user.name "github-actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/St1_Build-Rootfs-release.yml
+          git commit -m "添加新版本选项: ${{ steps.sync-ib.outputs.server_date }}"
+          git push origin main
+
+      - name: 🚀 上传到 Release (如需要)
+        if: steps.sync-ib.outputs.should_update == 'true'
+        uses: softprops/action-gh-release@v2.2.1
+        with:
+          tag_name: istoreos-imagebuilder-armsr-armv8
+          body: |
+            📅 同步版本: ${{ steps.sync-ib.outputs.server_date }}
+            ⚙️ 触发提交: ${{ github.sha }}
+          files: |
+            ${{ steps.sync-ib.outputs.file_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
