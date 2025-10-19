@@ -61,31 +61,29 @@ jobs:
           echo "获取到的服务器日期: $SERVER_DATE"
           echo "目标文件名: $FILE_NAME"
 
+          # 检查GitHub Release中是否已存在此版本
           if RELEASE_INFO=$(curl -f -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG") && \
             echo "$RELEASE_INFO" | grep -q "\"name\":.*$FILE_NAME"; then
             echo "✅ 版本 $TAG ($SERVER_DATE) 已存在，跳过同步。"
             echo "should_update=false" >> $GITHUB_OUTPUT
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "未检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
           else
             echo "🔄 需要下载新版本: $FILE_NAME"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
+            curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
             echo "should_update=true" >> $GITHUB_OUTPUT
+            sed -i "/- 'new'/a \          - '$SERVER_DATE'" .github/workflows/St1_Build-Rootfs-release.yml
+            git config user.name "github-actions"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/workflows/St1_Build-Rootfs-release.yml
+            git commit -m "添加新版本选项: $SERVER_DATE"
+            git push origin main
           fi
-
+          # 设置输出变量
           echo "server_date=$SERVER_DATE" >> $GITHUB_OUTPUT
           echo "file_name=$FILE_NAME" >> $GITHUB_OUTPUT
-
-      # 添加新日期选项到工作流文件
-      - name: 更新工作流选项
-        if: steps.sync-ib.outputs.should_update == 'true'
-        run: |
-          # 在'new'选项下方添加新日期
-          sed -i "/- 'new'/a \          - '${{ steps.sync-ib.outputs.server_date }}'" .github/workflows/St1_Build-Rootfs-release.yml
-          git config user.name "github-actions"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/St1_Build-Rootfs-release.yml
-          git commit -m "添加新版本选项: ${{ steps.sync-ib.outputs.server_date }}"
-          git push origin main
-
+ 
       - name: 🚀 上传到 Release (如需要)
         if: steps.sync-ib.outputs.should_update == 'true'
         uses: softprops/action-gh-release@v2.2.1
@@ -98,3 +96,103 @@ jobs:
             ${{ steps.sync-ib.outputs.file_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+
+  trigger-st1:
+    name: '[ST1] 触发并等待 Rootfs 构建'
+    runs-on: ubuntu-latest
+    needs: trigger-st0
+    if: |
+      (github.event_name == 'schedule' && needs.trigger-st0.outputs.should_update == 'true') ||
+      (github.event_name == 'workflow_dispatch')
+    steps:
+      - name: 🔔🔔 触发 St1 (Rootfs构建) 工作流
+        uses: benc-uk/workflow-dispatch@v1
+        id: dispatch-st1
+        with:
+          workflow: 'St1_Build-Rootfs-release.yml'
+          ref: 'main'
+          inputs: '{"network_settings": "${{ github.event.inputs.network_settings }}","ipaddr": "${{ github.event.inputs.ipaddr }}","ib_Version": "${{ needs.trigger-st0.outputs.server_date }}"}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+        
+      - name: ⏳ 等待 ST1 完成并发送通知
+        run: |
+          sleep 10
+          max_wait=300
+          interval=10
+          
+          echo "开始等待 ST1 工作流完成..."
+          
+          for ((i=0; i<$max_wait/$interval; i++)); do
+            response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/St1_Build-Rootfs-release.yml/runs?branch=main&event=workflow_dispatch&per_page=1")
+            
+            status=$(echo "$response" | jq -r '.workflow_runs[0].status')
+            conclusion=$(echo "$response" | jq -r '.workflow_runs[0].conclusion')
+            
+            if [ "$status" = "completed" ]; then
+              echo "ST1 工作流已完成，结果: $conclusion"
+              
+              if [ "$conclusion" = "success" ]; then
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译成功"}' "${{ secrets.WEBHOOK_URL }}"
+              else
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译失败"}' "${{ secrets.WEBHOOK_URL }}"
+              fi
+              
+              exit 0
+            fi
+            
+            echo "$(date): ST1 状态 - $status, 等待中... ($((i*interval))秒)"
+            sleep $interval
+          done
+          
+          echo "错误: 等待 ST1 完成超时"
+          curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译超时"}' "${{ secrets.WEBHOOK_URL }}"
+          exit 1
+
+  trigger-st2:
+    name: '[ST2] 触发并等待 iStoreOS 构建'
+    runs-on: ubuntu-latest
+    needs: trigger-st1
+    steps:
+      - name: 🔔 触发 St2 (iStoreOS构建) 工作流
+        uses: benc-uk/workflow-dispatch@v1
+        id: dispatch-st2
+        with:
+          workflow: 'St2_Build-iStoreOS-ib.yml' # 请确保此文件名与您的实际工作流文件一致
+          ref: 'main'
+          inputs: '{"openwrt_board": "${{ inputs.openwrt_board }}","network_settings": "${{ github.event.inputs.network_settings }}"}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+  
+      - name: ⏳ 等待 ST2 完成并通知
+        run: |
+          sleep 10
+          max_wait=300
+          interval=10
+          
+          echo "等待 ST2 工作流完成..."
+          
+          for ((i=0; i<$max_wait/$interval; i++)); do
+            response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/St2_Build-iStoreOS-ib.yml/runs?branch=main&event=workflow_dispatch&per_page=1")
+            
+            status=$(echo "$response" | jq -r '.workflow_runs[0].status')
+            conclusion=$(echo "$response" | jq -r '.workflow_runs[0].conclusion')
+            
+            if [ "$status" = "completed" ]; then
+              echo "ST2 工作流已完成，结果: $conclusion"
+              if [ "$conclusion" = "success" ]; then
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译成功"}' "${{ secrets.WEBHOOK_URL }}"
+              else
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译失败"}' "${{ secrets.WEBHOOK_URL }}"
+              fi
+              exit 0
+            fi
+            
+            echo "等待中... ($((i*interval))秒)"
+            sleep $interval
+          done
+          
+          curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译超时"}' "${{ secrets.WEBHOOK_URL }}"
+          exit 1
