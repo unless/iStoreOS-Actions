@@ -87,41 +87,36 @@ jobs:
               exit 0
           fi
           
-          # 使用临时文件进行修改
-          TEMP_FILE=$(mktemp)
-          
-          # 复制文件内容到临时文件，并在适当位置插入新选项
-          awk -v new_date="$SERVER_DATE" '
-          / - '\''new'\''/ {
-              print $0
-              print "          - '\''" new_date "'\''"
-              inserted = 1
-              next
-          }
-          /options:/ && !inserted {
-              print $0
-              print "          - '\''" new_date "'\''"
-              inserted = 1
-              next
-          }
-          { print }
-          ' "$ST1_FILE" > "$TEMP_FILE"
-          
-          # 替换原文件
-          mv "$TEMP_FILE" "$ST1_FILE"
+          # 使用简单的 sed 命令插入新选项
+          sed -i "/ - 'new'/a\          - '$SERVER_DATE'" "$ST1_FILE"
           
           # 检查是否成功添加
           if grep -q " - '$SERVER_DATE'" "$ST1_FILE"; then
-              echo "✅ 修改成功，准备提交"
-              git config --local user.email "action@github.com"
-              git config --local user.name "GitHub Action"
-              git add "$ST1_FILE"
-              git commit -m "自动添加新版本选项: $SERVER_DATE [skip ci]"
-              git push
-              echo "✅ 提交完成"
+              echo "✅ 修改成功"
           else
               echo "❌ 修改失败"
               exit 1
           fi
-        env:
-            GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+      
+      - name: 🔄 提交新版本号变更
+        if: steps.sync-ib.outputs.should_update == 'true'
+        run: |
+          # 配置 git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # 添加文件到暂存区
+          git add .github/workflows/St1_Build-Rootfs-release.yml
+          
+          # 检查是否有变更
+          if git diff --cached --quiet; then
+            echo "没有变更需要提交"
+            exit 0
+          fi
+          
+          # 提交变更
+          git commit -m "自动添加新版本选项: ${{ steps.sync-ib.outputs.server_date }} [skip ci]"
+          
+          # 使用 token 推送（重要：使用正确的格式）
+          git remote set-url origin "https://x-access-token:${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push origin main
