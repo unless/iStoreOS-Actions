@@ -17,13 +17,13 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           repository: ${{ github.repository }}
-          retain_days: 7
-          keep_minimum_runs: 6
+          retain_days: 0
+          keep_minimum_runs: 1
 
       - name: Delete workflow runs for remote repo
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: 'unless/iStoreOS-Actions'
-          retain_days: 7
-          keep_minimum_runs: 6
+          retain_days: 0
+          keep_minimum_runs: 1
