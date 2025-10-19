@@ -123,3 +123,5 @@ jobs:
               echo "❌ 修改失败"
               exit 1
           fi
+        env:
+            GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
