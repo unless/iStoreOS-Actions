@@ -24,6 +24,6 @@ jobs:
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: 'Owner/repository'
+          repository: 'unless/iStoreOS-Actions'
           retain_days: 7
           keep_minimum_runs: 6
