@@ -34,7 +34,7 @@ on:
         options:
           - 'new'
           - '2025-09-30'
-          - '2025-10-17'
+          - '2025-10-15'
       repo_settings:
         description: "unless/iStoreOS-Actions"
         required: true
