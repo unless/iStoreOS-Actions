@@ -87,31 +87,16 @@ jobs:
               exit 0
           fi
           
-          # 使用 Python 进行精确插入
-          python3 <<EOF
-          with open("$ST1_FILE", "r") as f:
-              lines = f.readlines()
+          # 使用简单的 sed 命令插入新选项
+          sed -i "/ - 'new'/a\          - '$SERVER_DATE'" "$ST1_FILE"
           
-          new_lines = []
-          inserted = False
-          for i, line in enumerate(lines):
-              new_lines.append(line)
-              if "default: 'new'" in line and not inserted:
-                  # 找到 options: 行并在其后添加新选项
-                  if i+2 < len(lines) and "options:" in lines[i+1]:
-                      # 在 options 列表中添加新日期
-                      indent = "          "
-                      new_lines.append(f'{indent}- '"'$SERVER_DATE'"'\n')
-                      inserted = True
-          
-          if inserted:
-              with open("$ST1_FILE", "w") as f:
-                  f.writelines(new_lines)
-              print("✅ 修改成功")
-          else:
-              print("❌ 未找到插入位置")
-              exit(1)
-          EOF
+          # 检查是否成功添加
+          if grep -q " - '$SERVER_DATE'" "$ST1_FILE"; then
+              echo "✅ 修改成功"
+          else
+              echo "❌ 修改失败"
+              exit 1
+          fi
       
       - name: 🔄 提交变更
         if: steps.sync-ib.outputs.should_update == 'true'
