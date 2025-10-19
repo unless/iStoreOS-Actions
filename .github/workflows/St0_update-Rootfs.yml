@@ -47,7 +47,7 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           ref: main
-          
+
       - name: 同步iStoreOS镜像
         id: sync-ib
         run: |
@@ -72,27 +72,20 @@ jobs:
             curl -X POST -H "Content-Type: application/json" -d '{"text": "未检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
           else
             echo "🔄 需要下载新版本: $FILE_NAME"
-            curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
-            echo "should_update=true" >> $GITHUB_OUTPUT
             curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
+            echo "should_update=true" >> $GITHUB_OUTPUT
+            sed -i "/- 'new'/a \          - '$SERVER_DATE'" .github/workflows/St1_Build-Rootfs-release.yml
+            git config user.name "github-actions"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/workflows/St1_Build-Rootfs-release.yml
+            git commit -m "添加新版本选项: $SERVER_DATE"
+            git push origin main
+            curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
           fi
-
           # 设置输出变量
           echo "server_date=$SERVER_DATE" >> $GITHUB_OUTPUT
           echo "file_name=$FILE_NAME" >> $GITHUB_OUTPUT
-          
-      # 添加新日期选项到工作流文件
-      - name: 更新工作流选项
-        if: steps.sync-ib.outputs.should_update == 'true'
-        run: |
-          # 在'new'选项下方添加新日期
-          sed -i "/- 'new'/a \          - '${{ steps.sync-ib.outputs.server_date }}'" .github/workflows/St1_Build-Rootfs-release.yml
-          git config user.name "github-actions"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/St1_Build-Rootfs-release.yml
-          git commit -m "添加新版本选项: ${{ steps.sync-ib.outputs.server_date }}"
-          git push origin main
-
+ 
       - name: 🚀 上传到 Release (如需要)
         if: steps.sync-ib.outputs.should_update == 'true'
         uses: softprops/action-gh-release@v2.2.1
@@ -123,12 +116,10 @@ jobs:
           inputs: '{"network_settings": "${{ github.event.inputs.network_settings }}","ipaddr": "${{ github.event.inputs.ipaddr }}","ib_Version": "${{ needs.trigger-st0.outputs.server_date }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          
-      - name: ⏳ 等待几秒让 ST1 开始运行
-        run: sleep 10
         
       - name: ⏳ 等待 ST1 完成并发送通知
         run: |
+          sleep 10
           max_wait=300
           interval=10
           
@@ -175,12 +166,10 @@ jobs:
           inputs: '{"openwrt_board": "${{ inputs.openwrt_board }}","network_settings": "${{ github.event.inputs.network_settings }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          
-      - name: ⏳ 等待几秒让 ST2 开始运行
-        run: sleep 10
-        
+  
       - name: ⏳ 等待 ST2 完成并通知
         run: |
+          sleep 10
           max_wait=300
           interval=10
           
