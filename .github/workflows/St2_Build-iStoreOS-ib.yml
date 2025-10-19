@@ -242,7 +242,6 @@ jobs:
         run: |
           chmod +x arm64/build25.sh
           chmod +x shell/*.sh
-          echo "🔧 检测到贝壳云设备，开始执行处理脚本..."
           cp arm64/build25.sh ./
           bash ./build25.sh
         env:
