@@ -66,7 +66,6 @@ jobs:
             echo "should_update=false" >> $GITHUB_OUTPUT
           else
             echo "🔄 需要下载新版本: $FILE_NAME"
-            curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
             echo "should_update=true" >> $GITHUB_OUTPUT
           fi
           # 设置输出变量
