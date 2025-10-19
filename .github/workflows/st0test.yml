@@ -1,4 +1,4 @@
-name: 💿 St0_update-Rootfs
+name: 💿 St0_test-Rootfs
 
 on:
   schedule:
@@ -67,7 +67,7 @@ jobs:
             echo "✅ 版本 $TAG ($SERVER_DATE) 已存在，跳过同步。"
             echo "should_update=false" >> $GITHUB_OUTPUT
           
-            curl -X POST -H "Content-Type: application/json" -d "{\"text\": \"未检测到新版本，将编译已有版本: $RELEASE_INFO\"}" "${{ secrets.WEBHOOK_URL }}" || echo "Webhook1发送失败"
+            curl -X POST -H "Content-Type: application/json" -d "{\"text\": \"未检测到新版本，将编译已有版本: $RELEASE_INFO ,稍后\"}" "${{ secrets.WEBHOOK_URL }}" || echo "Webhook1发送失败"
             curl -X POST -H "Content-Type: application/json" -d "{\"text\": \"检测到新版本 $SERVER_DATE，开始下载编译\"}" "${{ secrets.WEBHOOK_URL }}" || echo "Webhook2发送失败"
 
 
