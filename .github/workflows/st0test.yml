@@ -118,5 +118,5 @@ jobs:
           git commit -m "自动添加新版本选项: ${{ steps.sync-ib.outputs.server_date }} [skip ci]"
           
           # 使用 token 推送（重要：使用正确的格式）
-          git remote set-url origin "https://x-access-token:${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin main
