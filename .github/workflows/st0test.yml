@@ -120,7 +120,10 @@ jobs:
           inputs: '{"network_settings": "${{ github.event.inputs.network_settings }}","ipaddr": "${{ github.event.inputs.ipaddr }}","ib_Version": "${{ needs.trigger-st0.outputs.server_date }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-  
+          
+      - name: ⏳ 等待几秒让 ST1 开始运行
+        run: sleep 10
+        
       - name: ⏳ 等待 ST1 完成并发送通知
         run: |
           max_wait=300
@@ -169,7 +172,10 @@ jobs:
           inputs: '{"openwrt_board": "${{ inputs.openwrt_board }}","network_settings": "${{ github.event.inputs.network_settings }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-
+          
+      - name: ⏳ 等待几秒让 ST2 开始运行
+        run: sleep 10
+        
       - name: ⏳ 等待 ST2 完成并通知
         run: |
           max_wait=300
