@@ -1,5 +1,8 @@
 name: 💿 St0_test
-
+permissions:
+  contents: write
+  actions: write
+  workflows: write
 on:
   schedule:
     # 注意：GitHub Actions 使用 UTC 时间
@@ -106,4 +109,4 @@ jobs:
           author_email: actions@github.com
           message: "自动添加新版本选项: ${{ steps.sync-ib.outputs.server_date }} [skip ci]"
           add: ".github/workflows/St1_Build-Rootfs-release.yml"
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.github.token }}
