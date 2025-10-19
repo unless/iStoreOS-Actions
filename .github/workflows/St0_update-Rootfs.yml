@@ -106,41 +106,57 @@ jobs:
   trigger-st1:
     name: '[ST1] 触发并等待 Rootfs 构建'
     runs-on: ubuntu-latest
-    needs: trigger-st0 # 依赖 ST0 任务
-    # 可选：仅在 ST0 判断需要更新时才运行
+    needs: trigger-st0
     if: |
       (github.event_name == 'schedule' && needs.trigger-st0.outputs.should_update == 'true') ||
       (github.event_name == 'workflow_dispatch')
     steps:
-      - name: 🔔 触发 St1 (Rootfs构建) 工作流
+      - name: 🔔🔔 触发 St1 (Rootfs构建) 工作流
         uses: benc-uk/workflow-dispatch@v1
         id: dispatch-st1
         with:
-          workflow: 'St1_Build-Rootfs-release.yml' # 请确保此文件名与您的实际工作流文件一致
-          ref: 'main' # 触发的工作流所在分支
+          workflow: 'St1_Build-Rootfs-release.yml'
+          ref: 'main'
           inputs: '{"network_settings": "${{ github.event.inputs.network_settings }}","ipaddr": "${{ github.event.inputs.ipaddr }}","ib_Version": "${{ needs.trigger-st0.outputs.server_date }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: ⏳ 等待 St1 工作流完成
-        uses: fountainhead/action-wait-for-check@v1.2.0
-        id: wait-for-st1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "buildrootfs" # 请根据 St1 工作流中的实际 job name 修改
-          ref: ${{ github.sha }}
-          timeoutSeconds: 480
-          intervalSeconds: 5
-
-      - name: 发送ST1结果通知
+          
+      - name: ⏳ 等待几秒让 ST1 开始运行
+        run: sleep 10
+        
+      - name: ⏳ 等待 ST1 完成并发送通知
         run: |
-          # 直接使用等待步骤的结果
-          echo "${{ steps.wait-for-st1.outputs.conclusion }}"
-          if [ "${{ steps.wait-for-st1.outputs.conclusion }}" = "success" ]; then
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1编译成功"}' "${{ secrets.WEBHOOK_URL }}"
-          else
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1编译失败"}' "${{ secrets.WEBHOOK_URL }}"
-          fi
+          max_wait=300
+          interval=10
+          
+          echo "开始等待 ST1 工作流完成..."
+          
+          for ((i=0; i<$max_wait/$interval; i++)); do
+            response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/St1_Build-Rootfs-release.yml/runs?branch=main&event=workflow_dispatch&per_page=1")
+            
+            status=$(echo "$response" | jq -r '.workflow_runs[0].status')
+            conclusion=$(echo "$response" | jq -r '.workflow_runs[0].conclusion')
+            
+            if [ "$status" = "completed" ]; then
+              echo "ST1 工作流已完成，结果: $conclusion"
+              
+              if [ "$conclusion" = "success" ]; then
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译成功"}' "${{ secrets.WEBHOOK_URL }}"
+              else
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译失败"}' "${{ secrets.WEBHOOK_URL }}"
+              fi
+              
+              exit 0
+            fi
+            
+            echo "$(date): ST1 状态 - $status, 等待中... ($((i*interval))秒)"
+            sleep $interval
+          done
+          
+          echo "错误: 等待 ST1 完成超时"
+          curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译超时"}' "${{ secrets.WEBHOOK_URL }}"
+          exit 1
 
   trigger-st2:
     name: '[ST2] 触发并等待 iStoreOS 构建'
@@ -156,24 +172,37 @@ jobs:
           inputs: '{"openwrt_board": "${{ inputs.openwrt_board }}","network_settings": "${{ github.event.inputs.network_settings }}"}'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: ⏳ 等待 St2 工作流完成
-        uses: fountainhead/action-wait-for-check@v1.2.0
-        id: wait-for-st2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "buildimg" # 请根据 St2 工作流中的实际 job name 修改
-          ref: ${{ github.sha }}
-          timeoutSeconds: 240
-          intervalSeconds: 5
-
-      - name: 发送ST2结果通知
+          
+      - name: ⏳ 等待几秒让 ST2 开始运行
+        run: sleep 10
+        
+      - name: ⏳ 等待 ST2 完成并通知
         run: |
-          # 直接使用等待步骤的结果
-          echo "${{ steps.wait-for-st2.outputs.conclusion }}"
-          if [ "${{ steps.wait-for-st2.outputs.conclusion }}" = "success" ]; then
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译成功"}' "${{ secrets.WEBHOOK_URL }}"
-          else
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译失败"}' "${{ secrets.WEBHOOK_URL }}"
-          fi
-
+          max_wait=300
+          interval=10
+          
+          echo "等待 ST2 工作流完成..."
+          
+          for ((i=0; i<$max_wait/$interval; i++)); do
+            response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/St2_Build-iStoreOS-ib.yml/runs?branch=main&event=workflow_dispatch&per_page=1")
+            
+            status=$(echo "$response" | jq -r '.workflow_runs[0].status')
+            conclusion=$(echo "$response" | jq -r '.workflow_runs[0].conclusion')
+            
+            if [ "$status" = "completed" ]; then
+              echo "ST2 工作流已完成，结果: $conclusion"
+              if [ "$conclusion" = "success" ]; then
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译成功"}' "${{ secrets.WEBHOOK_URL }}"
+              else
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译失败"}' "${{ secrets.WEBHOOK_URL }}"
+              fi
+              exit 0
+            fi
+            
+            echo "等待中... ($((i*interval))秒)"
+            sleep $interval
+          done
+          
+          curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译超时"}' "${{ secrets.WEBHOOK_URL }}"
+          exit 1
