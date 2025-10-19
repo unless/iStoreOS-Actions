@@ -66,12 +66,12 @@ jobs:
             echo "$RELEASE_INFO" | grep -q "\"name\":.*$FILE_NAME"; then
             echo "✅ 版本 $TAG ($SERVER_DATE) 已存在，跳过同步。"
             echo "should_update=false" >> $GITHUB_OUTPUT
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "未检测到新版本，将编译"$RELEASE_INFO""}' "${{ secrets.WEBHOOK_URL }}"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "未检测到新版本，将编译已有版本: '"$RELEASE_INFO"'"}' "${{ secrets.WEBHOOK_URL }}"
           else
             echo "🔄 需要下载新版本: $FILE_NAME"
             curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
             echo "should_update=true" >> $GITHUB_OUTPUT
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本"$SERVER_DATE"，开始下载编译"}' "${{ secrets.WEBHOOK_URL }}"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
           fi
 
           # 设置输出变量
@@ -135,6 +135,7 @@ jobs:
       - name: 发送ST1结果通知
         run: |
           # 直接使用等待步骤的结果
+          echo "${{ steps.wait-for-st1.outputs.conclusion }}"
           if ${{ steps.wait-for-st1.outputs.conclusion }} == 'success'; then
             curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1编译成功"}' "${{ secrets.WEBHOOK_URL }}"
           else
@@ -169,6 +170,7 @@ jobs:
       - name: 发送ST2结果通知
         run: |
           # 直接使用等待步骤的结果
+          echo "${{ steps.wait-for-st2.outputs.conclusion }}"
           if ${{ steps.wait-for-st2.outputs.conclusion }} == 'success'; then
             curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译成功"}' "${{ secrets.WEBHOOK_URL }}"
           else
