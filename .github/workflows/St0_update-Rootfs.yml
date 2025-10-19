@@ -136,18 +136,10 @@ jobs:
         run: |
           # 直接使用等待步骤的结果
           if ${{ steps.wait-for-st1.outputs.conclusion }} == 'success'; then
-            message="✅ ST1编译成功！"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1编译成功"}' "${{ secrets.WEBHOOK_URL }}"
           else
-            message="❌ ST1编译失败！"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1编译失败"}' "${{ secrets.WEBHOOK_URL }}"
           fi
-          
-          # 添加工作流链接
-          run_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          message="$message\n工作流详情: $run_url"
-          
-          curl -X POST -H "Content-Type: application/json" \
-            -d "{\"text\": \"$message\"}" \
-            "${{ secrets.WEBHOOK_URL }}"
 
   trigger-st2:
     name: '[ST2] 触发并等待 iStoreOS 构建'
@@ -178,15 +170,8 @@ jobs:
         run: |
           # 直接使用等待步骤的结果
           if ${{ steps.wait-for-st2.outputs.conclusion }} == 'success'; then
-            message="✅ ST2编译成功！"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译成功"}' "${{ secrets.WEBHOOK_URL }}"
           else
-            message="❌ ST2编译失败！"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译失败"}' "${{ secrets.WEBHOOK_URL }}"
           fi
-          
-          # 添加工作流链接
-          run_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          message="$message\n工作流详情: $run_url"
-          
-          curl -X POST -H "Content-Type: application/json" \
-            -d "{\"text\": \"$message\"}" \
-            "${{ secrets.WEBHOOK_URL }}"
+
