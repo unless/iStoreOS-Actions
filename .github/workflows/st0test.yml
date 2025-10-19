@@ -69,9 +69,9 @@ jobs:
             curl -X POST -H "Content-Type: application/json" -d '{"text": "未检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
           else
             echo "🔄 需要下载新版本: $FILE_NAME"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
             curl -L -o "$FILE_NAME" "$ISURL/$ISFILE"
             echo "should_update=true" >> $GITHUB_OUTPUT
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
             sed -i "/- 'new'/a \          - '$SERVER_DATE'" .github/workflows/St1_Build-Rootfs-release.yml
             git config user.name "github-actions"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
