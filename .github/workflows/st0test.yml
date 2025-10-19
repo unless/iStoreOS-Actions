@@ -87,36 +87,38 @@ jobs:
               exit 0
           fi
           
-          # 使用简单的 sed 命令插入新选项
-          sed -i "/ - 'new'/a\          - '$SERVER_DATE'" "$ST1_FILE"
+          # 使用 Python 进行精确插入
+          python3 <<EOF
+          with open("$ST1_FILE", "r") as f:
+              lines = f.readlines()
           
-          # 检查是否成功添加
-          if grep -q " - '$SERVER_DATE'" "$ST1_FILE"; then
-              echo "✅ 修改成功"
-          else
-              echo "❌ 修改失败"
-              exit 1
-          fi
+          new_lines = []
+          inserted = False
+          for i, line in enumerate(lines):
+              new_lines.append(line)
+              if "default: 'new'" in line and not inserted:
+                  # 找到 options: 行并在其后添加新选项
+                  if i+2 < len(lines) and "options:" in lines[i+1]:
+                      # 在 options 列表中添加新日期
+                      indent = "          "
+                      new_lines.append(f'{indent}- '"'$SERVER_DATE'"'\n')
+                      inserted = True
+          
+          if inserted:
+              with open("$ST1_FILE", "w") as f:
+                  f.writelines(new_lines)
+              print("✅ 修改成功")
+          else:
+              print("❌ 未找到插入位置")
+              exit(1)
+          EOF
       
-      - name: 🔄 提交新版本号变更
+      - name: 🔄 提交变更
         if: steps.sync-ib.outputs.should_update == 'true'
-        run: |
-          # 配置 git
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          # 添加文件到暂存区
-          git add .github/workflows/St1_Build-Rootfs-release.yml
-          
-          # 检查是否有变更
-          if git diff --cached --quiet; then
-            echo "没有变更需要提交"
-            exit 0
-          fi
-          
-          # 提交变更
-          git commit -m "自动添加新版本选项: ${{ steps.sync-ib.outputs.server_date }} [skip ci]"
-          
-          # 使用 token 推送（重要：使用正确的格式）
-          git remote set-url origin "https://x-access-token:${{ secrets.GHH_TOKEN }}@github.com/${{ github.repository }}.git"
-          git push origin main
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: GitHub Actions
+          author_email: actions@github.com
+          message: "自动添加新版本选项: ${{ steps.sync-ib.outputs.server_date }} [skip ci]"
+          add: ".github/workflows/St1_Build-Rootfs-release.yml"
+          token: ${{ secrets.GH_TOKEN }}
