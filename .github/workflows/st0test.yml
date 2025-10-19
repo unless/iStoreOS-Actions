@@ -106,4 +106,4 @@ jobs:
           author_email: actions@github.com
           message: "自动添加新版本选项: ${{ steps.sync-ib.outputs.server_date }} [skip ci]"
           add: ".github/workflows/St1_Build-Rootfs-release.yml"
-          token: ${{ secrets.GHH_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
