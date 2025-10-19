@@ -127,7 +127,7 @@ jobs:
         id: wait-for-st1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "build" # 请根据 St1 工作流中的实际 job name 修改
+          checkName: "buildrootfs" # 请根据 St1 工作流中的实际 job name 修改
           ref: ${{ github.sha }}
           timeoutSeconds: 480
           intervalSeconds: 5
@@ -162,7 +162,7 @@ jobs:
         id: wait-for-st2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "buildis" # 请根据 St2 工作流中的实际 job name 修改
+          checkName: "buildimg" # 请根据 St2 工作流中的实际 job name 修改
           ref: ${{ github.sha }}
           timeoutSeconds: 240
           intervalSeconds: 5
