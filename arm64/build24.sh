@@ -1041,6 +1041,12 @@ PACKAGES="$PACKAGES xz-utils"                     # XZ工具集
 PACKAGES="$PACKAGES zlib"                         # zlib压缩库
 PACKAGES="$PACKAGES zram-swap"                    # ZRAM交换工具
 PACKAGES="$PACKAGES -libustream-mbedtls"          # 移除mbedtls的ustream库
+PACKAGES="$PACKAGES zoneinfo-core"   #luci-app-dead依赖
+PACKAGES="$PACKAGES zoneinfo-asia"   #luci-app-dead依赖
+PACKAGES="$PACKAGES v2ray-geoip"   #luci-app-dead依赖
+PACKAGES="$PACKAGES v2ray-geosite"   #luci-app-dead依赖
+PACKAGES="$PACKAGES microsocks"   #luci-app-microsocks依赖
+
 # 固件打包脚本必要依赖，其他依赖官方列表已集成
 PACKAGES="$PACKAGES perlbase-time"
 
@@ -1054,6 +1060,8 @@ PACKAGES="$PACKAGES luci-app-amlogic luci-i18n-amlogic-zh-cn"
 #PACKAGES="$PACKAGES openlist2 luci-app-openlist2 luci-i18n-openlist2-zh-cn"
 PACKAGES="$PACKAGES luci-app-ramfree luci-i18n-ramfree-zh-cn"
 PACKAGES="$PACKAGES luci-app-adguardhome luci-i18n-adguardhome-zh-cn"
+PACKAGES="$PACKAGES libcron_aarch64_cortex-a53 daed_2025.07.23-r1_aarch64_generic luci-app-daed_1.3-r1_all luci-i18n-dead-zh-cn"
+PACKAGES="$PACKAGES luci-app-microsocks luci-i18n-microsocks-zh-cn"
 
 # opc-rely依赖，其他会自动集成
 PACKAGES="$PACKAGES ruby ruby-pstore ruby-psych ruby-yaml"
