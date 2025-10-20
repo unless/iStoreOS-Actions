@@ -34,9 +34,6 @@ on:
         options:
           - 'new'
           - '2025-10-17'
-          - '2025-10-17'
-          - '2025-10-17'
-          - '2025-10-17'
           - '2025-09-30'
           - '2025-10-15'
       repo_settings:
@@ -48,7 +45,7 @@ env:
   VERSION: 24.10.3
 
 jobs:
-  buildrootfs:
+  build:
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout code
