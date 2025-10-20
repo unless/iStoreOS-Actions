@@ -4,6 +4,7 @@ source custom-packages.sh
 echo "第三方软件包: $CUSTOM_PACKAGES"
 LOGFILE="/tmp/uci-defaults-log.txt"
 echo "Starting 99-custom.sh at $(date)" >> $LOGFILE
+INCLUDE_DOCKER="${INCLUDE_DOCKER}"
 echo "Include Docker: $INCLUDE_DOCKER"
 
 if [ -z "$CUSTOM_PACKAGES" ]; then
