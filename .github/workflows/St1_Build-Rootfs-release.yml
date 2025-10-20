@@ -122,6 +122,8 @@ jobs:
 
     - name: 🧱 构建iStoreOS-rootfs
       working-directory: ./imagebuilder
+      env:
+          INCLUDE_DOCKER: ${{ inputs.include_docker }}
       run: |
         echo "打印imagebuilder目录结构"
         tree -L 1
