@@ -69,10 +69,10 @@ jobs:
             echo "$RELEASE_INFO" | grep -q "\"name\":.*$FILE_NAME"; then
             echo "✅ 版本 $TAG ($SERVER_DATE) 已存在，跳过同步。"
             echo "should_update=false" >> $GITHUB_OUTPUT
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "未检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] 未检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
           else
             echo "🔄 需要下载新版本: $FILE_NAME"
-            curl -X POST -H "Content-Type: application/json" -d '{"text": "检测到新版本，将编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
+            curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] 检测到新版本，将下载编译: '"$SERVER_DATE"'"}' "${{ secrets.WEBHOOK_URL }}"
             echo "should_update=true" >> $GITHUB_OUTPUT
             sed -i "/- 'new'/a \          - '$SERVER_DATE'" .github/workflows/St1_Build-Rootfs-release.yml
             git config user.name "github-actions"
@@ -136,9 +136,9 @@ jobs:
               echo "ST1 工作流已完成，结果: $conclusion"
               
               if [ "$conclusion" = "success" ]; then
-                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译成功"}' "${{ secrets.WEBHOOK_URL }}"
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] ST1 Rootfs编译成功}' "${{ secrets.WEBHOOK_URL }}"
               else
-                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译失败"}' "${{ secrets.WEBHOOK_URL }}"
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] ST1 Rootfs编译失败}' "${{ secrets.WEBHOOK_URL }}"
               fi
               
               exit 0
@@ -149,7 +149,7 @@ jobs:
           done
           
           echo "错误: 等待 ST1 完成超时"
-          curl -X POST -H "Content-Type: application/json" -d '{"text": "ST1 Rootfs编译超时"}' "${{ secrets.WEBHOOK_URL }}"
+          curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] ST1 Rootfs编译超时}' "${{ secrets.WEBHOOK_URL }}"
           exit 1
 
   trigger-st2:
@@ -185,9 +185,9 @@ jobs:
             if [ "$status" = "completed" ]; then
               echo "ST2 工作流已完成，结果: $conclusion"
               if [ "$conclusion" = "success" ]; then
-                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译成功"}' "${{ secrets.WEBHOOK_URL }}"
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] ST2编译img成功}' "${{ secrets.WEBHOOK_URL }}"
               else
-                curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译失败"}' "${{ secrets.WEBHOOK_URL }}"
+                curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] ST2编译img失败}' "${{ secrets.WEBHOOK_URL }}"
               fi
               exit 0
             fi
@@ -196,5 +196,6 @@ jobs:
             sleep $interval
           done
           
-          curl -X POST -H "Content-Type: application/json" -d '{"text": "ST2编译超时"}' "${{ secrets.WEBHOOK_URL }}"
+          echo "错误: 等待 ST1 完成超时"
+          curl -X POST -H "Content-Type: application/json" -d '{"text": "['$(date -d "+8 hour" +"%F\ %T\ UTC+8")'] ST2编译超时}' "${{ secrets.WEBHOOK_URL }}"
           exit 1
