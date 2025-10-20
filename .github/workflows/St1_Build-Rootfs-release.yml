@@ -98,7 +98,7 @@ jobs:
     - name: ⏬ 复制并设置必备文件
       run: |
         cp arm64/{build24.sh,Makefile} imagebuilder/
-        #cp arm64/repositories.conf imagebuilder/
+        cp arm64/repositories.conf imagebuilder/
         cp shell/{prepare-packages.sh,custom-packages.sh} imagebuilder/
         find files/packages/ -name "*.ipk" -exec cp {} imagebuilder/packages/ \;
         
