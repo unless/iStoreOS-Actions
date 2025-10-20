@@ -203,7 +203,7 @@ env:
   VERSION: 24.10.3
 
 jobs:
-  buildimg:
+  build:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
