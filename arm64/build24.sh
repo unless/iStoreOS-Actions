@@ -1061,8 +1061,8 @@ PACKAGES="$PACKAGES luci-app-amlogic luci-i18n-amlogic-zh-cn"
 #PACKAGES="$PACKAGES openlist2 luci-app-openlist2 luci-i18n-openlist2-zh-cn"
 PACKAGES="$PACKAGES luci-app-ramfree luci-i18n-ramfree-zh-cn"
 PACKAGES="$PACKAGES luci-app-adguardhome luci-i18n-adguardhome-zh-cn"
-PACKAGES="$PACKAGES libcron_aarch64_cortex-a53 daed_2025.07.23-r1_aarch64_generic luci-app-daed_1.3-r1_all luci-i18n-dead-zh-cn"
 PACKAGES="$PACKAGES luci-app-microsocks luci-i18n-microsocks-zh-cn"
+PACKAGES="$PACKAGES libcron daed luci-app-daed luci-i18n-dead-zh-cn"
 
 # opc-rely依赖，其他会自动集成
 PACKAGES="$PACKAGES ruby ruby-pstore ruby-psych ruby-yaml"
