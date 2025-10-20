@@ -139,6 +139,7 @@ jobs:
                 curl -X POST -H "Content-Type: application/json" -d '{"text": "['"$(TZ='Asia/Shanghai' date +"%Y-%m-%d %H:%M:%S")"'] ST1 Rootfs编译成功 🎉"}' "${{ secrets.WEBHOOK_URL }}"
               else
                 curl -X POST -H "Content-Type: application/json" -d '{"text": "['"$(TZ='Asia/Shanghai' date +"%Y-%m-%d %H:%M:%S")"'] ST1 Rootfs编译失败 ❌"}' "${{ secrets.WEBHOOK_URL }}"
+                exit 1
               fi
               
               exit 0
@@ -188,6 +189,7 @@ jobs:
                 curl -X POST -H "Content-Type: application/json" -d '{"text": "['"$(TZ='Asia/Shanghai' date +"%Y-%m-%d %H:%M:%S")"'] ST2 img编译成功 🎉"}' "${{ secrets.WEBHOOK_URL }}"
               else
                 curl -X POST -H "Content-Type: application/json" -d '{"text": "['"$(TZ='Asia/Shanghai' date +"%Y-%m-%d %H:%M:%S")"'] ST2 img编译失败 ❌"}' "${{ secrets.WEBHOOK_URL }}"
+                exit 1
               fi
               exit 0
             fi
