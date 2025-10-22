@@ -1044,8 +1044,8 @@ PACKAGES="$PACKAGES zram-swap"                    # ZRAM交换工具
 PACKAGES="$PACKAGES -libustream-mbedtls"          # 移除mbedtls的ustream库
 #PACKAGES="$PACKAGES luci-app-microsocks"   #luci-app-microsocks
 #PACKAGES="$PACKAGES luci-i18n-microsocks-zh-cn"   #luci-app-microsocks
-PACKAGES="$PACKAGES luci-app-daed"   #luci-app-microsocks
-PACKAGES="$PACKAGES luci-i18n-dead-zh-cn"   #luci-app-microsocks
+#PACKAGES="$PACKAGES luci-app-daed"   #luci-app-microsocks
+#PACKAGES="$PACKAGES luci-i18n-dead-zh-cn"   #luci-app-microsocks
 
 
 
