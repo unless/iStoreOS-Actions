@@ -120,7 +120,7 @@ jobs:
       - name: ⏳ 等待 ST1 完成并发送通知
         run: |
           sleep 10
-          max_wait=300
+          max_wait=600
           interval=10
           
           echo "开始等待 ST1 工作流完成..."
